@@ -1,4 +1,4 @@
-[![github_banner](https://github.com/user-attachments/assets/0c34642a-bd3b-459a-8926-275233d12176)](https://www.pgedge.com/get-started/platform)
+[![github_banner](images/org-banner.png)](https://www.pgedge.com/get-started/platform)
 
 <div align="center">
   <a href="https://www.pgedge.com">Learn more</a> • 
