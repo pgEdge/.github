@@ -28,8 +28,7 @@ All of our tools & extensions for PostgreSQL are available to self-host here on 
 Check out the [pgEdge Enterprise Postgres documentation](https://docs.pgedge.com/enterprise/) to learn more about what's included.
 
 <a id="deployment"></a>
-## Deployment<img width="2876" height="1372" alt="Screenshot 2026-03-17 at 6 30 14 AM" src="https://github.com/user-attachments/assets/ee4f5404-1e66-4a15-8642-04677452b705" />
- options
+## Deployment options
 
 We offer virtual machine, bare metal, Kubernetes, Docker, and fully-managed cloud deployment options for all of our offerings. The [pgEdge Developer Hub](https://www.pgedge.com/get-started) on our website will walk you through how to get started from the all-in-one pgEdge Enterprise Postgres installation option. Otherwise, check out the installation instructions for each repository if you are individually setting up different tools & extensions.
 
