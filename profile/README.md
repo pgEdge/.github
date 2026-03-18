@@ -32,14 +32,14 @@ Check out the [pgEdge Enterprise Postgres documentation](https://docs.pgedge.com
 
 We offer virtual machine, bare metal, Kubernetes, Docker, and fully-managed cloud deployment options for all of our offerings. The [pgEdge Developer Hub](https://www.pgedge.com/get-started) on our website will walk you through how to get started from the all-in-one pgEdge Enterprise Postgres installation option. Otherwise, check out the installation instructions for each repository if you are individually setting up different tools & extensions.
 
+Another way to manage your PostgreSQL clusters with pgEdge components is to use the [Control Plane](https://github.com/pgEdge/control-plane), a declarative API that is designed to simplify the management and orchestration of Postrges databases. Written in Golang, with a Docker Compose setup available for easily setting up a local development environment.
+
 ### Integrations 
 
-- [Prefer using Ansible to deploy infrastructure and cluster resources?](https://github.com/pgEdge/pgedge-ansible) This collection will build a Postgres cluster for you that can be globally distributed for database operations at the edge.
+- Install pgEdge Postgres using a [Helm chart](https://github.com/pgEdge/pgedge-helm) to deploy quickly on Kubernetes.
 - Leverage [Postgres images built from pgEdge Enterprise packages](https://github.com/pgEdge/postgres-images)
-- Install pgEdge Distributed Postgres using a [Helm chart](https://github.com/pgEdge/pgedge-helm) to deploy quickly on Kubernetes.
-- Explore [Dockerfile and Docker examples for pgEdge Distributed Postgres](https://github.com/pgEdge/pgedge-docker).
-- [Connect Cloudflare Workers to your pgEdge Cloud database](https://github.com/pgEdge/cloudflare-worker-template) using our template.
-- Working with [Terraform](https://github.com/pgEdge/terraform-provider-pgedge)? Our pgEdge Cloud terraform provider works seamlessly for both the Developer and Enterprise editions.
+- [Prefer using Ansible to deploy infrastructure and cluster resources?](https://github.com/pgEdge/pgedge-ansible) This collection will build a Postgres cluster for you that can be globally distributed for database operations at the edge.
+- Working with [Terraform](https://github.com/pgEdge/terraform-provider-pgedge)? Our pgEdge Cloud Terraform provider is designed for seamless use.
 - Simplify the management of pgEdge Cloud resources using infrastructure as code with the [official Pulumi provider for pgEdge Cloud](https://github.com/pgEdge/pulumi-pgedge).
 
 <a id="devresources"></a>
