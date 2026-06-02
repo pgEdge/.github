@@ -2,7 +2,7 @@
 
 # pgEdge
 
-**Write anywhere. Read anywhere.** pgEdge is 100% open-source Distributed Postgres, under the PostgreSQL License, for Agentic AI app development and applications that need reliable multi-region high availability while still running 100% community Postgres.
+**Write anywhere. Read anywhere.** pgEdge is 100% open-source, enterprise-grade Postgres, under the PostgreSQL License, for Agentic AI app development and applications that need reliable multi-region high availability while still running 100% community Postgres.
 
 We're a team of PostgreSQL contributors, committers, and longtime community members who came here because distributed Postgres is genuinely interesting. Our CTO [Dave Page](https://github.com/dpage) is a PostgreSQL core team member and the creator of pgAdmin - he'll tell you distributed databases were the subject of his master's dissertation, and he's not joking. In September 2025 we re-licensed our core extensions - Spock, Snowflake, and lolor - from a proprietary license to the PostgreSQL License, because open source isn't a strategy for us. It's just how we think Postgres should work.
 
@@ -19,7 +19,7 @@ A complete Postgres distribution (v16–18) bundling Spock, lolor, Snowflake Seq
 [Download](https://www.pgedge.com/download/enterprise-postgres) · [GitHub](https://github.com/pgEdge)
 
 ### [pgEdge Cloud](https://www.pgedge.com/products/pgedge-cloud)
-Fully managed distributed Postgres DBaaS, built on Spock for active-active multi-region replication.
+Fully managed enterprise-ready Postgres DBaaS, built on Spock for active-active multi-region replication.
 [Learn more](https://www.pgedge.com/products/pgedge-cloud) · [Free trial](https://app.pgedge.com) · [Terraform](https://github.com/pgEdge/terraform-provider-pgedge) · [Pulumi](https://github.com/pgEdge/pulumi-pgedge)
 
 ### [pgEdge Agentic AI Toolkit](https://www.pgedge.com/products/agentic-ai-postgres)
@@ -34,11 +34,11 @@ Free, open-source, agentless Postgres monitoring and AI-assisted diagnosis for a
 
 ## Core Extensions
 
-These are the building blocks of pgEdge Distributed Postgres. All three were re-licensed to the PostgreSQL License in September 2025 - feel free to use them, fork them, and contribute.
+These are the building blocks of pgEdge Enterprise Postgres. All three were re-licensed to the PostgreSQL License in September 2025 - feel free to use them, fork them, and contribute.
 
 | Repo | What it does |
 |---|---|
-| [spock](https://github.com/pgEdge/spock) | Multi-master logical replication for Postgres 15–18. The engine behind pgEdge Distributed Postgres. |
+| [spock](https://github.com/pgEdge/spock) | Multi-master logical replication for Postgres 15–18. The engine behind pgEdge Enterprise Postgres. |
 | [snowflake](https://github.com/pgEdge/snowflake) | Globally unique int8 IDs for distributed writes - a drop-in replacement for `bigserial`. |
 | [lolor](https://github.com/pgEdge/lolor) | Large Object Logical Replication for Postgres 16+. |
 
