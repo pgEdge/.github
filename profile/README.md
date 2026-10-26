@@ -1,10 +1,10 @@
-[![github_banner](https://github.com/user-attachments/assets/ea7bfb9e-93b4-409b-89eb-ea7e05b2d998)](https://www.pgedge.com/)
+<img width="2876" height="1375" alt="Github Readme image (2)" src="https://github.com/user-attachments/assets/86f5dd4c-be60-44d8-8264-9ce7fefcfa93" />
 
 # pgEdge
 
 **Build on cloud. Deploy anywhere.** pgEdge is 100% open-source, enterprise-grade Postgres, under the PostgreSQL License. pgEdge Starfleet takes it from first prototype to production: start building on pgEdge-hosted cloud in under two minutes, then deploy the identical Postgres platform to your own cloud, on-premises, or air-gapped infrastructure, with no replatforming.
 
-We're a team of PostgreSQL contributors, committers, and longtime community members who came here because distributed Postgres is genuinely interesting. Our CTO [Dave Page](https://github.com/dpage) is a PostgreSQL core team member and the creator of pgAdmin - he'll tell you distributed databases were the subject of his master's dissertation, and he's not joking. In September 2025 we re-licensed our core extensions - Spock, Snowflake, and lolor - from a proprietary license to the PostgreSQL License, because open source isn't a strategy for us. It's just how we think Postgres should work.
+We're a team of PostgreSQL contributors, committers, and longtime community members who came here to solve the hard enterprise-grade Postgres problems: high availability, zero-downtime upgrades, and data sovereignty. More recently, that work has extended to making Postgres the foundation for Agentic AI, with an MCP server, RAG server, and vectorizer that keep your data in the database you already run. In September 2025 we re-licensed our core extensions - Spock, Snowflake, and lolor - from a proprietary license to the PostgreSQL License, because open source isn't a strategy for us. It's just how we think deploying Postgres should work.
 
 Everything here is 100% open-source. No catch.
 
@@ -19,7 +19,7 @@ The enterprise Postgres cloud platform: build fast on pgEdge-hosted cloud (14-da
 [Start free](https://www.pgedge.com/products/starfleet) · [Docs](https://docs.pgedge.com)
 
 ### [pgEdge Enterprise Postgres](https://www.pgedge.com/products/what-is-pgedge-enterprise-postgres)
-The self-hosted deployment path for pgEdge Starfleet, and a complete Postgres distribution (v16–18) on its own: bundles Spock, lolor, Snowflake Sequences, pgVector, pgCat, pgBackRest, PostGIS, and 20+ extensions. Deploy on VMs, bare metal, Kubernetes, Docker, or fully on-premises, including air-gapped. Same-day patches for every PostgreSQL release - enhancements, bug fixes, and security updates without delay.
+The self-hosted deployment path for pgEdge Starfleet, and a complete Postgres distribution (v16 to 18) on its own. This is where distributed Postgres lives: Spock adds active-active, multi-master replication, so every node is writable and readable, with no primary/replica routing and no single point of failure. You can add or remove nodes and run major and minor version upgrades without downtime, with automated conflict detection and resolution, and selective replication by table, partition, or value range to keep regional data where it belongs. Snowflake Sequences give you globally unique IDs across nodes, and lolor replicates large objects. All of it ships as standard Postgres extensions, not a fork, alongside pgVector, pgBackRest, PostGIS, and 20+ other extensions. Deploy on VMs, bare metal, Kubernetes, Docker, or fully on-premises, including air-gapped. Same-day patches for every PostgreSQL release - enhancements, bug fixes, and security updates without delay.
 [Download](https://www.pgedge.com/download/enterprise-postgres) · [GitHub](https://github.com/pgEdge)
 
 ### [pgEdge Agentic AI Toolkit](https://www.pgedge.com/products/agentic-ai-postgres)
