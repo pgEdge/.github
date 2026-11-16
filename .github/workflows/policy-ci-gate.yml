@@ -31,55 +31,37 @@ jobs:
           CODERABBIT_WAIT: 900
         run: |
           set -euo pipefail
-          # Checks are left out by check suite, not by name, so a repo job
-          # that happens to be called ci-gate is still counted.
-          read -r SELF_SUITE SELF_WORKFLOW < <(gh api "repos/$REPO/actions/runs/$RUN_ID" \
-            --jq '"\(.check_suite_id) \(.workflow_id)"')
+          SELF_WORKFLOW=$(gh api "repos/$REPO/actions/runs/$RUN_ID" --jq .workflow_id)
           start=$(date +%s)
           sleep 60   # let workflows triggered by the same push create their runs
           stable=0
           while :; do
-            # Leave out every run of this gate on the commit, and any
-            # cancelled run that a newer run of the same workflow replaced.
-            # A push can deliver two pull_request events for one head commit,
-            # for example when a stack moves a PR's head and base together,
-            # and a workflow with cancel-in-progress then cancels its own
-            # first run. That cancelled run is not a failure. A run cancelled
-            # with no newer run behind it still is.
-            #
-            # Check runs are read before workflow runs. Concurrency creates
-            # the newer run before it cancels the older one, so any check
-            # already seen as cancelled has its replacement in the run list.
-            # The replacement's own checks may not be in the earlier check
-            # list yet, so any unfinished workflow run other than this gate
-            # keeps the poll pending.
-            all_runs=$(gh api --paginate "repos/$REPO/commits/$SHA/check-runs?per_page=100" \
-              --jq '.check_runs[] | [(.check_suite.id | tostring), .app.slug, .name, .status, (.conclusion // "")] | @tsv')
-            wf_runs=$(gh api --paginate "repos/$REPO/actions/runs?head_sha=$SHA&per_page=100" \
-              --jq '.workflow_runs[] | [.workflow_id, .id, (.conclusion // ""), .check_suite_id, .status] | @tsv')
-            wf_pending=$(awk -F'\t' -v self="$SELF_WORKFLOW" \
-              '$1 != "" && $1 != self && $5 != "completed" { p = 1 } END { print p + 0 }' <<< "$wf_runs")
-            SKIP_SUITES=$(sort -t$'\t' -k1,1n -k2,2n <<< "$wf_runs" \
-              | awk -F'\t' -v self="$SELF_WORKFLOW" '
-                  $1 == self { print $4 }
-                  $1 == prev && pconc == "cancelled" { print psuite }
-                  { prev = $1; pconc = $3; psuite = $4 }' \
-              | paste -sd, -)
-            SKIP_SUITES="$SELF_SUITE${SKIP_SUITES:+,$SKIP_SUITES}"
-            runs=$(awk -F'\t' -v OFS='\t' -v skip="$SKIP_SUITES" '
-                BEGIN { n = split(skip, s, ","); for (i = 1; i <= n; i++) skipped[s[i]] = 1 }
-                !($1 in skipped) { print $2, $3, $4, $5 }' <<< "$all_runs")
+            # GitHub Actions is judged by the newest run of each workflow on
+            # the commit, leaving out this gate. One commit can get two runs
+            # of a workflow, for example when a stack push moves a PR's head
+            # and base together, and cancel-in-progress then cancels the
+            # first. Only the newest run counts. A re-run updates its run, so
+            # it counts too.
+            wf=$(gh api --paginate "repos/$REPO/actions/runs?head_sha=$SHA&per_page=100" \
+              | jq -rs --argjson self "$SELF_WORKFLOW" '
+                  [.[].workflow_runs[] | select(.workflow_id != $self)]
+                  | group_by(.workflow_id)[] | max_by(.id)
+                  | ["workflow", .name, .status, (.conclusion // "")] | @tsv')
+            # Check runs from other apps, such as Codacy.
+            checks=$(gh api --paginate "repos/$REPO/commits/$SHA/check-runs?per_page=100" \
+              --jq '.check_runs[] | select(.app.slug != "github-actions")
+                    | ["check", .name, .status, (.conclusion // "")] | @tsv')
             stats=$(gh api "repos/$REPO/commits/$SHA/status?per_page=100" \
               --jq '.statuses[] | ["status", .context, .state] | @tsv')
-            pending=$wf_pending; failed=0
-            while IFS=$'\t' read -r app name status concl; do
-              [ -z "$app" ] && continue
+            pending=0; failed=0
+            while IFS=$'\t' read -r kind name status concl; do
+              [ -z "$kind" ] && continue
               if [ "$status" != completed ]; then pending=1; continue; fi
               case "$concl" in
                 success|neutral|skipped) ;;
-                *) echo "::error::check '$name' concluded '$concl'"; failed=1 ;;
+                *) echo "::error::$kind '$name' concluded '$concl'"; failed=1 ;;
               esac
-            done <<< "$runs"
+            done <<< "$wf"$'\n'"$checks"
             waited=$(( $(date +%s) - start ))
             while IFS=$'\t' read -r _ ctx state; do
               [ -z "$ctx" ] && continue
