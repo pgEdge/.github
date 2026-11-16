@@ -50,11 +50,16 @@ jobs:
             # Check runs are read before workflow runs. Concurrency creates
             # the newer run before it cancels the older one, so any check
             # already seen as cancelled has its replacement in the run list.
+            # The replacement's own checks may not be in the earlier check
+            # list yet, so any unfinished workflow run other than this gate
+            # keeps the poll pending.
             all_runs=$(gh api --paginate "repos/$REPO/commits/$SHA/check-runs?per_page=100" \
               --jq '.check_runs[] | [(.check_suite.id | tostring), .app.slug, .name, .status, (.conclusion // "")] | @tsv')
-            SKIP_SUITES=$(gh api --paginate "repos/$REPO/actions/runs?head_sha=$SHA&per_page=100" \
-              --jq '.workflow_runs[] | [.workflow_id, .id, (.conclusion // ""), .check_suite_id] | @tsv' \
-              | sort -t$'\t' -k1,1n -k2,2n \
+            wf_runs=$(gh api --paginate "repos/$REPO/actions/runs?head_sha=$SHA&per_page=100" \
+              --jq '.workflow_runs[] | [.workflow_id, .id, (.conclusion // ""), .check_suite_id, .status] | @tsv')
+            wf_pending=$(awk -F'\t' -v self="$SELF_WORKFLOW" \
+              '$1 != "" && $1 != self && $5 != "completed" { p = 1 } END { print p + 0 }' <<< "$wf_runs")
+            SKIP_SUITES=$(sort -t$'\t' -k1,1n -k2,2n <<< "$wf_runs" \
               | awk -F'\t' -v self="$SELF_WORKFLOW" '
                   $1 == self { print $4 }
                   $1 == prev && pconc == "cancelled" { print psuite }
@@ -66,7 +71,7 @@ jobs:
                 !($1 in skipped) { print $2, $3, $4, $5 }' <<< "$all_runs")
             stats=$(gh api "repos/$REPO/commits/$SHA/status?per_page=100" \
               --jq '.statuses[] | ["status", .context, .state] | @tsv')
-            pending=0; failed=0
+            pending=$wf_pending; failed=0
             while IFS=$'\t' read -r app name status concl; do
               [ -z "$app" ] && continue
               if [ "$status" != completed ]; then pending=1; continue; fi
