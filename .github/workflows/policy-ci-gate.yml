@@ -31,16 +31,33 @@ jobs:
           CODERABBIT_WAIT: 900
         run: |
           set -euo pipefail
-          # Exclude this workflow's own check suite, not a check name, so a
-          # repo job that happens to be called ci-gate is still counted.
-          SELF_SUITE=$(gh api "repos/$REPO/actions/runs/$RUN_ID" --jq .check_suite_id)
-          export SELF_SUITE
+          # Checks are left out by check suite, not by name, so a repo job
+          # that happens to be called ci-gate is still counted.
+          read -r SELF_SUITE SELF_WORKFLOW < <(gh api "repos/$REPO/actions/runs/$RUN_ID" \
+            --jq '"\(.check_suite_id) \(.workflow_id)"')
           start=$(date +%s)
           sleep 60   # let workflows triggered by the same push create their runs
           stable=0
           while :; do
+            # Leave out every run of this gate on the commit, and any
+            # cancelled run that a newer run of the same workflow replaced.
+            # A push can deliver two pull_request events for one head commit,
+            # for example when a stack moves a PR's head and base together,
+            # and a workflow with cancel-in-progress then cancels its own
+            # first run. That cancelled run is not a failure. A run cancelled
+            # with no newer run behind it still is.
+            SKIP_SUITES=$(gh api --paginate "repos/$REPO/actions/runs?head_sha=$SHA&per_page=100" \
+              --jq '.workflow_runs[] | [.workflow_id, .id, (.conclusion // ""), .check_suite_id] | @tsv' \
+              | sort -t$'\t' -k1,1n -k2,2n \
+              | awk -F'\t' -v self="$SELF_WORKFLOW" '
+                  $1 == self { print $4 }
+                  $1 == prev && pconc == "cancelled" { print psuite }
+                  { prev = $1; pconc = $3; psuite = $4 }' \
+              | paste -sd, -)
+            SKIP_SUITES="$SELF_SUITE${SKIP_SUITES:+,$SKIP_SUITES}"
+            export SKIP_SUITES
             runs=$(gh api --paginate "repos/$REPO/commits/$SHA/check-runs?per_page=100" \
-              --jq '.check_runs[] | select((.check_suite.id | tostring) != env.SELF_SUITE) | [.app.slug, .name, .status, (.conclusion // "")] | @tsv')
+              --jq '.check_runs[] | select((.check_suite.id | tostring) as $s | env.SKIP_SUITES | split(",") | index([$s]) | not) | [.app.slug, .name, .status, (.conclusion // "")] | @tsv')
             stats=$(gh api "repos/$REPO/commits/$SHA/status?per_page=100" \
               --jq '.statuses[] | ["status", .context, .state] | @tsv')
             pending=0; failed=0
