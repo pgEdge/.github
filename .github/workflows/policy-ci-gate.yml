@@ -1,0 +1,78 @@
+# Org required workflow (ruleset r2). Lives in pgEdge/.github and runs on
+# every pull request into a Tier 1-3 protected branch. It passes only when
+# every other check run and commit status on the PR head commit has finished
+# successfully. It does not require any particular job, or any CI at all:
+# repos with no CI are reported by the compliance report instead.
+# CodeRabbit is waited for, but only for CODERABBIT_WAIT seconds: it is
+# rate-limited and sometimes never posts, and must not block a merge.
+name: policy-ci-gate
+
+on:
+  pull_request:
+  merge_group:
+
+permissions:
+  actions: read
+  checks: read
+  statuses: read
+  contents: read
+
+jobs:
+  ci-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - name: Wait for all other checks to pass
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          CODERABBIT_WAIT: 900
+        run: |
+          set -euo pipefail
+          # Exclude this workflow's own check suite, not a check name, so a
+          # repo job that happens to be called ci-gate is still counted.
+          SELF_SUITE=$(gh api "repos/$REPO/actions/runs/$RUN_ID" --jq .check_suite_id)
+          export SELF_SUITE
+          start=$(date +%s)
+          sleep 60   # let workflows triggered by the same push create their runs
+          stable=0
+          while :; do
+            runs=$(gh api --paginate "repos/$REPO/commits/$SHA/check-runs?per_page=100" \
+              --jq '.check_runs[] | select((.check_suite.id | tostring) != env.SELF_SUITE) | [.app.slug, .name, .status, (.conclusion // "")] | @tsv')
+            stats=$(gh api "repos/$REPO/commits/$SHA/status?per_page=100" \
+              --jq '.statuses[] | ["status", .context, .state] | @tsv')
+            pending=0; failed=0
+            while IFS=$'\t' read -r app name status concl; do
+              [ -z "$app" ] && continue
+              if [ "$status" != completed ]; then pending=1; continue; fi
+              case "$concl" in
+                success|neutral|skipped) ;;
+                *) echo "::error::check '$name' concluded '$concl'"; failed=1 ;;
+              esac
+            done <<< "$runs"
+            waited=$(( $(date +%s) - start ))
+            while IFS=$'\t' read -r _ ctx state; do
+              [ -z "$ctx" ] && continue
+              if [ "$ctx" = CodeRabbit ] && [ "$state" = pending ] && [ "$waited" -ge "$CODERABBIT_WAIT" ]; then
+                echo "::warning::CodeRabbit still pending after ${CODERABBIT_WAIT}s; not waiting for it"
+                continue
+              fi
+              case "$state" in
+                success) ;;
+                pending) pending=1 ;;
+                *) echo "::error::status '$ctx' is '$state'"; failed=1 ;;
+              esac
+            done <<< "$stats"
+            [ "$failed" = 1 ] && exit 1
+            if [ "$pending" = 0 ]; then
+              stable=$((stable + 1))
+              # Clean for three polls in a row (about 90s), so external CI
+              # such as CircleCI that registers its status late is not missed.
+              [ "$stable" -ge 3 ] && { echo "All checks passed."; exit 0; }
+            else
+              stable=0
+            fi
+            sleep 30
+          done
