@@ -46,6 +46,12 @@ jobs:
             # and a workflow with cancel-in-progress then cancels its own
             # first run. That cancelled run is not a failure. A run cancelled
             # with no newer run behind it still is.
+            #
+            # Check runs are read before workflow runs. Concurrency creates
+            # the newer run before it cancels the older one, so any check
+            # already seen as cancelled has its replacement in the run list.
+            all_runs=$(gh api --paginate "repos/$REPO/commits/$SHA/check-runs?per_page=100" \
+              --jq '.check_runs[] | [(.check_suite.id | tostring), .app.slug, .name, .status, (.conclusion // "")] | @tsv')
             SKIP_SUITES=$(gh api --paginate "repos/$REPO/actions/runs?head_sha=$SHA&per_page=100" \
               --jq '.workflow_runs[] | [.workflow_id, .id, (.conclusion // ""), .check_suite_id] | @tsv' \
               | sort -t$'\t' -k1,1n -k2,2n \
@@ -55,9 +61,9 @@ jobs:
                   { prev = $1; pconc = $3; psuite = $4 }' \
               | paste -sd, -)
             SKIP_SUITES="$SELF_SUITE${SKIP_SUITES:+,$SKIP_SUITES}"
-            export SKIP_SUITES
-            runs=$(gh api --paginate "repos/$REPO/commits/$SHA/check-runs?per_page=100" \
-              --jq '.check_runs[] | select((.check_suite.id | tostring) as $s | env.SKIP_SUITES | split(",") | index([$s]) | not) | [.app.slug, .name, .status, (.conclusion // "")] | @tsv')
+            runs=$(awk -F'\t' -v OFS='\t' -v skip="$SKIP_SUITES" '
+                BEGIN { n = split(skip, s, ","); for (i = 1; i <= n; i++) skipped[s[i]] = 1 }
+                !($1 in skipped) { print $2, $3, $4, $5 }' <<< "$all_runs")
             stats=$(gh api "repos/$REPO/commits/$SHA/status?per_page=100" \
               --jq '.statuses[] | ["status", .context, .state] | @tsv')
             pending=0; failed=0
