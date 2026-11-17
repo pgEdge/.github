@@ -40,12 +40,13 @@ jobs:
             # the commit, leaving out this gate. One commit can get two runs
             # of a workflow, for example when a stack push moves a PR's head
             # and base together, and cancel-in-progress then cancels the
-            # first. Only the newest run counts. A re-run updates its run, so
-            # it counts too.
+            # first. Only the newest run of each workflow and event counts, so
+            # a failed push run isn't hidden by a newer pull_request run. A
+            # re-run updates its run, so it counts too.
             wf=$(gh api --paginate "repos/$REPO/actions/runs?head_sha=$SHA&per_page=100" \
               | jq -rs --argjson self "$SELF_WORKFLOW" '
                   [.[].workflow_runs[] | select(.workflow_id != $self)]
-                  | group_by(.workflow_id)[] | max_by(.id)
+                  | group_by([.workflow_id, .event])[] | max_by(.id)
                   | ["workflow", .name, .status, (.conclusion // "")] | @tsv')
             # Check runs from other apps, such as Codacy.
             checks=$(gh api --paginate "repos/$REPO/commits/$SHA/check-runs?per_page=100" \
