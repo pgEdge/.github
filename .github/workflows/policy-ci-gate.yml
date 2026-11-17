@@ -31,27 +31,38 @@ jobs:
           CODERABBIT_WAIT: 900
         run: |
           set -euo pipefail
-          # Exclude this workflow's own check suite, not a check name, so a
-          # repo job that happens to be called ci-gate is still counted.
-          SELF_SUITE=$(gh api "repos/$REPO/actions/runs/$RUN_ID" --jq .check_suite_id)
-          export SELF_SUITE
+          SELF_WORKFLOW=$(gh api "repos/$REPO/actions/runs/$RUN_ID" --jq .workflow_id)
           start=$(date +%s)
           sleep 60   # let workflows triggered by the same push create their runs
           stable=0
           while :; do
-            runs=$(gh api --paginate "repos/$REPO/commits/$SHA/check-runs?per_page=100" \
-              --jq '.check_runs[] | select((.check_suite.id | tostring) != env.SELF_SUITE) | [.app.slug, .name, .status, (.conclusion // "")] | @tsv')
+            # GitHub Actions is judged by the newest run of each workflow on
+            # the commit, leaving out this gate. One commit can get two runs
+            # of a workflow, for example when a stack push moves a PR's head
+            # and base together, and cancel-in-progress then cancels the
+            # first. Only the newest run of each workflow and event counts, so
+            # a failed push run isn't hidden by a newer pull_request run. A
+            # re-run updates its run, so it counts too.
+            wf=$(gh api --paginate "repos/$REPO/actions/runs?head_sha=$SHA&per_page=100" \
+              | jq -rs --argjson self "$SELF_WORKFLOW" '
+                  [.[].workflow_runs[] | select(.workflow_id != $self)]
+                  | group_by([.workflow_id, .event])[] | max_by(.id)
+                  | ["workflow", .name, .status, (.conclusion // "")] | @tsv')
+            # Check runs from other apps, such as Codacy.
+            checks=$(gh api --paginate "repos/$REPO/commits/$SHA/check-runs?per_page=100" \
+              --jq '.check_runs[] | select(.app.slug != "github-actions")
+                    | ["check", .name, .status, (.conclusion // "")] | @tsv')
             stats=$(gh api "repos/$REPO/commits/$SHA/status?per_page=100" \
               --jq '.statuses[] | ["status", .context, .state] | @tsv')
             pending=0; failed=0
-            while IFS=$'\t' read -r app name status concl; do
-              [ -z "$app" ] && continue
+            while IFS=$'\t' read -r kind name status concl; do
+              [ -z "$kind" ] && continue
               if [ "$status" != completed ]; then pending=1; continue; fi
               case "$concl" in
                 success|neutral|skipped) ;;
-                *) echo "::error::check '$name' concluded '$concl'"; failed=1 ;;
+                *) echo "::error::$kind '$name' concluded '$concl'"; failed=1 ;;
               esac
-            done <<< "$runs"
+            done <<< "$wf"$'\n'"$checks"
             waited=$(( $(date +%s) - start ))
             while IFS=$'\t' read -r _ ctx state; do
               [ -z "$ctx" ] && continue
