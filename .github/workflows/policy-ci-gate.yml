@@ -4,7 +4,8 @@
 # successfully. It does not require any particular job, or any CI at all:
 # repos with no CI are reported by the compliance report instead.
 # CodeRabbit is waited for, but only for CODERABBIT_WAIT seconds: it is
-# rate-limited and sometimes never posts, and must not block a merge.
+# rate-limited, sometimes never finishes, and cancels its review when a PR is
+# updated, and must not block a merge. A failed CodeRabbit review still fails.
 name: policy-ci-gate
 
 on:
@@ -48,22 +49,33 @@ jobs:
                   [.[].workflow_runs[] | select(.workflow_id != $self)]
                   | group_by([.workflow_id, .event])[] | max_by(.id)
                   | ["workflow", .name, .status, (.conclusion // "")] | @tsv')
-            # Check runs from other apps, such as Codacy.
+            # Check runs from other apps, such as Codacy. The API returns only
+            # the newest run of each name, so a new CodeRabbit review replaces
+            # a cancelled one.
             checks=$(gh api --paginate "repos/$REPO/commits/$SHA/check-runs?per_page=100" \
               --jq '.check_runs[] | select(.app.slug != "github-actions")
-                    | ["check", .name, .status, (.conclusion // "")] | @tsv')
+                    | [(if .app.slug == "coderabbitai" then "coderabbit" else "check" end),
+                       .name, .status, (.conclusion // "")] | @tsv')
             stats=$(gh api "repos/$REPO/commits/$SHA/status?per_page=100" \
               --jq '.statuses[] | ["status", .context, .state] | @tsv')
             pending=0; failed=0
+            waited=$(( $(date +%s) - start ))
             while IFS=$'\t' read -r kind name status concl; do
               [ -z "$kind" ] && continue
+              if [ "$kind" = coderabbit ] && { [ "$status" != completed ] || [ "$concl" = cancelled ]; }; then
+                if [ "$waited" -ge "$CODERABBIT_WAIT" ]; then
+                  echo "::warning::CodeRabbit ${concl:-$status} after ${CODERABBIT_WAIT}s; not waiting for it"
+                else
+                  pending=1
+                fi
+                continue
+              fi
               if [ "$status" != completed ]; then pending=1; continue; fi
               case "$concl" in
                 success|neutral|skipped) ;;
                 *) echo "::error::$kind '$name' concluded '$concl'"; failed=1 ;;
               esac
             done <<< "$wf"$'\n'"$checks"
-            waited=$(( $(date +%s) - start ))
             while IFS=$'\t' read -r _ ctx state; do
               [ -z "$ctx" ] && continue
               if [ "$ctx" = CodeRabbit ] && [ "$state" = pending ] && [ "$waited" -ge "$CODERABBIT_WAIT" ]; then
